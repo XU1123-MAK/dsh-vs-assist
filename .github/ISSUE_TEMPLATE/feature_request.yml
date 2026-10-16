@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest a new tool or an improvement to an existing one
+title: '[Feature] '
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This plugin aims to stay small and focused on the editor-assistant loop:
+        read the editor context, change code in Visual Studio, build, read
+        errors, and run. Features outside that loop may be a better fit for a
+        separate plugin.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve
+      description: >
+        Describe the workflow that is currently awkward or impossible, rather
+        than the solution you have in mind. The problem is the useful part.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: >
+        What you would like the plugin to do. If it is a new tool, suggest a
+        name following the vs_<verb> convention and sketch its arguments.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: >
+        Any workaround you use today, including other tools or manual steps.
+    validations:
+      required: false
+
+  - type: input
+    id: vs-version
+    attributes:
+      label: Visual Studio version
+      description: Some automation interfaces differ between Visual Studio releases.
+      placeholder: 'VS 2026 18.10.3'
+    validations:
+      required: false

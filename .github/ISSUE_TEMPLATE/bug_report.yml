@@ -1,0 +1,135 @@
+name: Bug report
+description: Report a problem with a vs_* tool or the DTE bridge
+title: '[Bug] '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most problems with this plugin are environment-specific (Visual Studio
+        build, virtual machine, remote desktop, locale), so the fields below
+        usually identify the cause faster than a description alone.
+
+        Before filing, please check the troubleshooting section of the README.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: A clear description of the bug, and what you expected instead.
+    validations:
+      required: true
+
+  - type: input
+    id: tool
+    attributes:
+      label: Which tool
+      description: The exact vs_* tool call, including its arguments.
+      placeholder: 'vs_build with engine=msbuild, target=C:\src\App.sln'
+    validations:
+      required: true
+
+  - type: textarea
+    id: raw-result
+    attributes:
+      label: Raw result
+      description: >
+        Paste the tool result verbatim. If it is an error, include the full
+        message. Redact private paths or project names, but keep the shape of
+        the output.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: status
+    attributes:
+      label: Plugin status output
+      description: >
+        What vs_status and vs_instances return, if the plugin loads at all.
+      render: json
+    validations:
+      required: false
+
+  - type: input
+    id: vs-version
+    attributes:
+      label: Visual Studio version
+      placeholder: 'VS 2026 18.10.3, or VS 2022 17.11'
+    validations:
+      required: true
+
+  - type: input
+    id: workloads
+    attributes:
+      label: Installed workloads
+      description: From the Visual Studio Installer.
+      placeholder: 'Desktop development with C++'
+    validations:
+      required: false
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: 'Windows 11 24H2'
+    validations:
+      required: true
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH version
+    validations:
+      required: false
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: The version field in the installed package.json.
+      placeholder: '0.1.0'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: vm-rdp
+    attributes:
+      label: Running in a VM or over RDP?
+      options:
+        - 'No'
+        - 'Yes, a virtual machine'
+        - 'Yes, over remote desktop'
+        - 'Not sure'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it reproduce?
+      options:
+        - Every time
+        - Intermittently
+        - Only on the first call after starting Visual Studio
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Extra context
+      description: |
+        Anything else that might matter. Two known troublemakers worth ruling out:
+
+        - A black Visual Studio window usually means WPF hardware acceleration
+          is unavailable; try `softwareRendering: true` in the plugin config.
+        - If `vs_status` reports `suppressedUi: true`, the IDE runs in
+          UI-suppressed automation mode. Document edits still work; prefer
+          `vs_build` with the `msbuild` engine for structured errors.
+        - If a modal dialog is open in Visual Studio (for example the mixed
+          line-ending prompt), every automation call fails with
+          `RPC_E_CALL_REJECTED` until it is dismissed.
+    validations:
+      required: false

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup and troubleshooting help
+    url: https://github.com/XU1123-MAK/dsh-vs-assist#故障排查
+    about: >
+      Most reported problems are environment issues (Black Visual Studio window,
+      suppressedUi mode, a blocking modal dialog). Check the troubleshooting
+      section of the README first.

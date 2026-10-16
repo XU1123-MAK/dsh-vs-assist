@@ -102,6 +102,17 @@
   DTE 调用报 `RPC_E_CALL_REJECTED` 直到人工确认。`vs_edit` 结果会带 `lineEnding: "MIXED"` 与
   `lineEndingWarning` 提示；`vs_new_file` 默认自动归一化。对已有混合行尾文件建议先统一行尾再继续。
 
+## 参与贡献
+
+欢迎提交 Issue 和 PR。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md) —— 其中记录了几个
+**容易踩坑且已在 CI 中强制校验**的约束（纯 ASCII 桥接、`-STA`、fail-closed 分支、
+行尾、宿主包必须保持 `peerDependencies`、不得使用 Copilot 商标）。
+
+- 报告 Bug 请用 [Bug 模板](.github/ISSUE_TEMPLATE/bug_report.yml)，其中要求填写
+  Visual Studio 版本、工作负载、是否虚拟机/RDP 以及 `vs_status` 原始输出 —— 本插件的
+  问题绝大多数是环境相关的。
+- 提需求请用 [功能请求模板](.github/ISSUE_TEMPLATE/feature_request.yml)。
+
 ## 开发与发布
 
 ### 环境要求
