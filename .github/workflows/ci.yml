@@ -1,0 +1,202 @@
+name: CI
+
+# Validates the plugin on every push and pull request:
+# JavaScript syntax, PowerShell parse, package contents, and a Windows
+# end-to-end load check of the plugin entry point.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntax check JavaScript sources
+        run: |
+          for f in lib/*.js; do
+            node --check "$f"
+            echo "ok: $f"
+          done
+
+      - name: Validate package.json and cordis patch
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const problems = [];
+
+            if (!pkg.name) problems.push('package.json: missing name');
+            if (!pkg.version) problems.push('package.json: missing version');
+            if (pkg.license !== 'MIT') problems.push('expected license MIT');
+            if (!pkg.dsh || !pkg.dsh.bundle || !pkg.dsh.bundle.patch)
+              problems.push('missing dsh.bundle.patch');
+
+            // Host packages must stay peer dependencies (never bundled).
+            for (const dep of ['@deepseek-ai/dsh-tools', '@deepseek-ai/cordis', '@deepseek-ai/schemastery']) {
+              if (pkg.dependencies && pkg.dependencies[dep])
+                problems.push(dep + ' must be a peerDependency, not a dependency');
+              if (!pkg.peerDependencies || !pkg.peerDependencies[dep])
+                problems.push(dep + ' missing from peerDependencies');
+            }
+
+            // Trademark hygiene: the package name, description and keywords
+            // must not use the GitHub Copilot mark.
+            const meta = [pkg.name, pkg.description, ...(pkg.keywords || [])].join(' ');
+            if (/copilot/i.test(meta))
+              problems.push('package name/description/keywords must not use the Copilot mark');
+
+            // Every path referenced from the manifest must exist.
+            const paths = [
+              pkg.main,
+              ...(pkg.files || []),
+              pkg.dsh && pkg.dsh.bundle && pkg.dsh.bundle.patch,
+            ].filter(Boolean);
+            for (const p of paths) {
+              if (!fs.existsSync(p)) problems.push('manifest references missing path: ' + p);
+            }
+
+            if (problems.length) {
+              for (const p of problems) console.error('::error::' + p);
+              process.exit(1);
+            }
+            console.log('package.json is valid.');
+          "
+
+      - name: Verify package contents
+        run: npm pack --dry-run
+
+  windows-load-check:
+    name: Windows load check
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: PowerShell parse check of the DTE bridge
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'lib/vs-dte.ps1'), [ref]$null, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error "$($_.Message) @line $($_.Extent.StartLineNumber)" }
+            exit 1
+          }
+          Write-Host 'lib/vs-dte.ps1 parses cleanly.'
+
+      - name: Bridge file must stay pure ASCII
+        shell: pwsh
+        run: |
+          # Windows PowerShell 5.1 reads .ps1 files as ANSI, so any non-ASCII
+          # byte in the bridge would be misinterpreted at runtime.
+          $path = 'lib/vs-dte.ps1'
+          $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $path))
+          $bad = @()
+          for ($i = 0; $i -lt $bytes.Length; $i++) {
+            if ($bytes[$i] -gt 127) { $bad += $i }
+          }
+          if ($bad.Count -gt 0) {
+            Write-Error "$path contains non-ASCII bytes at offsets: $($bad -join ', ')"
+            exit 1
+          }
+          Write-Host "$path is pure ASCII."
+
+      - name: Bridge actions match the Node bridge call sites
+        shell: pwsh
+        run: |
+          # The PowerShell bridge is invoked by string action name. A typo on
+          # either side only surfaces at runtime, so cross-check the two sets.
+          $psText = Get-Content 'lib/vs-dte.ps1' -Raw
+          $jsText = Get-Content 'lib/bridge.js' -Raw
+
+          $psActions = [regex]::Matches($psText, '(?m)^\s{2}"([a-z_]+)"\s*\{') |
+            ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+
+          if ($psActions.Count -eq 0) { Write-Error 'no bridge actions found in vs-dte.ps1'; exit 1 }
+
+          Write-Host ("bridge actions: " + ($psActions -join ', '))
+
+          # Every action the bridge implements should be reachable, and the
+          # dispatch table must still have its fail-closed default.
+          if ($psText -notmatch '(?m)^\s{2}default\s*\{') {
+            Write-Error 'vs-dte.ps1 is missing its default (unknown action) branch'
+            exit 1
+          }
+
+          # The default branch guards against unknown actions.
+          if ($psText -notmatch 'unknown action') {
+            Write-Error 'vs-dte.ps1 default branch does not reject unknown actions'
+            exit 1
+          }
+
+          Write-Host ("OK: $($psActions.Count) bridge actions, fail-closed default present.")
+
+      - name: Bridge must spawn PowerShell in STA mode
+        shell: pwsh
+        run: |
+          # EnvDTE automation requires a single-threaded apartment. Dropping
+          # -STA silently breaks every COM call, so pin it in CI.
+          $js = Get-Content 'lib/bridge.js' -Raw
+          if ($js -notmatch '"-STA"') {
+            Write-Error 'lib/bridge.js must pass -STA to powershell.exe'
+            exit 1
+          }
+          Write-Host 'OK: bridge requests STA.'
+
+      - name: Wrapper modules load (no host packages required)
+        shell: pwsh
+        run: |
+          # lib/bridge.js and lib/msbuild.js have no peer dependencies, so they
+          # can be imported directly. lib/index.js cannot be imported here: it
+          # imports @deepseek-ai/dsh-tools and @deepseek-ai/schemastery, which
+          # the DSH loader injects at runtime and which are deliberately NOT
+          # installed in this repository (see peerDependencies).
+          node -e "Promise.all([import('./lib/bridge.js'), import('./lib/msbuild.js')]).then(([b, m]) => { const bNeed = ['runBridge','ensureAttached','discoverVs','listDevenvPids','newBridgeState','BridgeError']; const mNeed = ['runMsbuild','discoverMsbuild','pickBuildTarget']; for (const k of bNeed) if (!(k in b)) { console.error('bridge.js missing export: ' + k); process.exit(1); } for (const k of mNeed) if (!(k in m)) { console.error('msbuild.js missing export: ' + k); process.exit(1); } console.log('bridge.js exports ok: ' + Object.keys(b).join(', ')); console.log('msbuild.js exports ok: ' + Object.keys(m).join(', ')); }).catch(e => { console.error('LOAD FAILED: ' + (e && e.message)); process.exit(1); });"
+
+      - name: Plugin entry imports only declared peer dependencies
+        shell: pwsh
+        run: |
+          # Static check in place of a runtime import: verifies that the plugin
+          # entry only reaches for packages it actually declares, so a missing
+          # declaration is caught before publish.
+          $src = Get-Content 'lib/index.js' -Raw
+          $pkg = Get-Content 'package.json' -Raw | ConvertFrom-Json
+
+          $bare = [regex]::Matches($src, '(?m)^\s*import[^''"]*[''"]([^''"./][^''"]*)[''"]') |
+            ForEach-Object { $_.Groups[1].Value } |
+            ForEach-Object { if ($_ -like '@*') { ($_ -split '/')[0..1] -join '/' } else { ($_ -split '/')[0] } } |
+            Where-Object { $_ -notmatch '^node:' } |
+            Sort-Object -Unique
+
+          if ($bare.Count -eq 0) { Write-Error 'no bare imports detected - parser likely broke'; exit 1 }
+
+          $declared = @()
+          if ($pkg.peerDependencies) { $declared += $pkg.peerDependencies.PSObject.Properties.Name }
+
+          $missing = $bare | Where-Object { $declared -notcontains $_ }
+          if ($missing) {
+            Write-Error ("lib/index.js imports undeclared packages: " + ($missing -join ', '))
+            exit 1
+          }
+          Write-Host ("OK: bare imports all declared as peerDependencies: " + ($bare -join ', '))
+

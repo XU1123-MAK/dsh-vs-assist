@@ -102,6 +102,64 @@
   DTE 调用报 `RPC_E_CALL_REJECTED` 直到人工确认。`vs_edit` 结果会带 `lineEnding: "MIXED"` 与
   `lineEndingWarning` 提示；`vs_new_file` 默认自动归一化。对已有混合行尾文件建议先统一行尾再继续。
 
+## 开发与发布
+
+### 环境要求
+
+- **Windows**(插件依赖 Visual Studio 的 DTE COM 自动化,其他平台无法工作)
+- Node.js ≥ 20
+- 本机已安装 Visual Studio 2019 / 2022 / 2026(需装 .NET 桌面或 C++ 工作负载之一)
+
+### 本地检查
+
+仓库自带 GitHub Actions 工作流([.github/workflows/ci.yml](.github/workflows/ci.yml)),
+在每次 push / PR 时执行以下检查,提交前也可手动跑一遍:
+
+```powershell
+# JavaScript 语法
+node --check lib/index.js; node --check lib/bridge.js; node --check lib/msbuild.js
+
+# PowerShell 桥接语法
+$e=$null; [System.Management.Automation.Language.Parser]::ParseFile("lib/vs-dte.ps1",[ref]$null,[ref]$e); $e.Count
+
+# 打包内容(不会真的生成 tarball)
+npm pack --dry-run
+```
+
+CI 覆盖的重点(都是本项目踩过坑的地方):
+
+| 检查 | 为什么需要 |
+| --- | --- |
+| `vs-dte.ps1` 必须为**纯 ASCII** | Windows PowerShell 5.1 按 ANSI 读取 `.ps1`,非 ASCII 字节会被曲解 |
+| `vs-dte.ps1` 必须有 fail-closed 的 `default` 分支 | 桥接按字符串动作名调用,未知动作必须报错而非静默通过 |
+| `bridge.js` 必须传 `-STA` | EnvDTE 自动化要求单线程套间,漏掉会静默地让所有 COM 调用失败 |
+| `lib/index.js` 的裸导入必须都在 `peerDependencies` 里 | 宿主 DSH 在运行时注入这些包,仓库里刻意不安装它们 |
+| `package.json` 名称/描述/关键词不得含 Copilot 商标 | 商标合规,防止 CI 无意间把商标写回清单 |
+| 清单引用的每个路径必须存在 | 防止 `exports.types` 之类的字段指向不存在的文件 |
+
+### 发布到 npm
+
+工作流 [.github/workflows/release.yml](.github/workflows/release.yml) 在推送 `v*` 标签时自动发布。
+
+**一次性配置**:在 npm 生成有发布权限的 Access Token,加到仓库 Secrets,名为 `NPM_TOKEN`。
+
+**发布步骤**:
+
+```powershell
+# 1. 改 package.json 的 version,提交
+git add -A; git commit -m "Release v0.1.0"
+
+# 2. 打同名标签并推送,触发自动发布
+git tag v0.1.0
+git push origin main --tags
+```
+
+工作流会先校验**标签版本与 `package.json` 版本一致**(不一致直接失败),再跑语法检查、
+`npm pack --dry-run`,最后发布。
+
+> 首次发布前建议确认包名 `dsh-vs-assist` 在 npm 上未被占用:
+> `npm view dsh-vs-assist`(返回 404 说明可用)。
+
 ## 安全说明
 
 - `vs_command` 仅允许白名单内的只读/编辑命令，不能执行任意 VS 命令。
