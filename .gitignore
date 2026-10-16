@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Logs and debug output
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+debug.log
+
+# Build / test output
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Editor and IDE files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Local plugin config overrides
+cordis.patch.local.yml
+
+# Temporary / scratch
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.rej

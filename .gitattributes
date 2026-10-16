@@ -1,0 +1,34 @@
+# Normalize line endings in the repository to LF.
+# This matters for this project: mixed CRLF/LF in a file opened in Visual Studio
+# triggers a modal prompt that blocks DTE automation.
+* text=auto eol=lf
+
+# Explicitly force LF for source and docs
+*.js    text eol=lf
+*.mjs   text eol=lf
+*.cjs   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.ps1   text eol=lf
+
+# Windows batch/shell scripts need their native endings
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.sh    text eol=lf
+
+# Binary files - never touch
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.zip   binary
+*.exe   binary
+*.dll   binary
+
+# Keep these out of language stats / diffs
+LICENSE linguist-vendored
+NOTICE  linguist-vendored

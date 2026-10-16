@@ -1,0 +1,4 @@
+- insert:
+    - id: vs-assist
+      # Must be the published/installed package name - the loader imports this specifier.
+      name: dsh-vs-assist

@@ -1,0 +1,66 @@
+dsh-vs-assist
+Copyright (c) 2026 XU1123-MAK
+Licensed under the MIT License (see LICENSE).
+
+================================================================================
+TRADEMARK NOTICE
+================================================================================
+
+This project is an independent, third-party open-source project. It is NOT
+affiliated with, sponsored by, endorsed by, or authorized by GitHub, Inc. or
+Microsoft Corporation.
+
+"GitHub Copilot" is a registered trademark of GitHub, Inc.
+"Visual Studio", "MSBuild" and "Microsoft" are trademarks of Microsoft
+Corporation. These names are referenced in this project only descriptively
+(to state what this software is compatible with) and do not imply any
+affiliation or endorsement.
+
+This project does NOT contain, call, integrate with, or emulate any code,
+service, API, or subscription belonging to GitHub Copilot. Its code-completion
+behavior is produced entirely by the DeepSeek Harness model that the user has
+independently configured.
+
+================================================================================
+NO MICROSOFT BINARY REDISTRIBUTION
+================================================================================
+
+This project does not redistribute any Microsoft binaries, assemblies, or SDKs.
+In particular:
+
+  * It does NOT bundle `EnvDTE.dll` or any other Visual Studio automation
+    assembly. It reaches the DTE COM automation interface at runtime through
+    PowerShell's `[Runtime.InteropServices.Marshal]::GetActiveObject(...)`,
+    which requires the user to have Visual Studio installed and licensed
+    themselves.
+  * It does NOT bundle or redistribute `devenv.exe`, `MSBuild.exe`, or any
+    other Visual Studio component. These are invoked as external processes on
+    the user's own machine, under the user's own Visual Studio license.
+  * It does NOT bypass, circumvent, or modify any license check, activation,
+    or entitlement mechanism of Visual Studio.
+
+The Visual Studio automation interfaces used here (the `EnvDTE` object model
+exposed through the DTE COM ProgIDs `VisualStudio.DTE.*`) are publicly
+documented Microsoft automation APIs intended for third-party integration.
+
+================================================================================
+HOST DEPENDENCIES ARE NOT REDISTRIBUTED
+================================================================================
+
+The DeepSeek Harness packages this plugin integrates with
+(`@deepseek-ai/cordis`, `@deepseek-ai/dsh-tools`, `@deepseek-ai/schemastery`)
+are declared as `peerDependencies` and are provided by the host DeepSeek
+Harness installation. They are not bundled or redistributed by this project.
+
+================================================================================
+ACKNOWLEDGEMENTS
+================================================================================
+
+The plugin structure used here (Cordis plugin entry shape, `defineTool`
+registration, the `dsh.bundle.patch` mounting convention, and the skill
+registration pattern) follows the publicly demonstrated interface usage of
+other DSH ecosystem plugins such as `@wxg-prc-cpg/browser-skill-dsh-plugin`
+and `dsh-better-sidebar`. All source code in this project — including the DTE
+bridge (`lib/vs-dte.ps1`), the Node bridge (`lib/bridge.js`), and the MSBuild
+engine (`lib/msbuild.js`) — was written independently for this project; no
+code was copied from those projects.
